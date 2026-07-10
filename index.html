@@ -17,8 +17,6 @@
   html,body{width:800px;height:480px;overflow:hidden;background:var(--bg);color:var(--white);
     font-family:Arial, Helvetica, "Segoe UI", sans-serif;-webkit-font-smoothing:antialiased}
   .page{position:relative;width:800px;height:480px;padding:14px 18px}
-
-  /* Header */
   .hdr{display:flex;align-items:center;justify-content:space-between;height:54px;
     border-bottom:3px solid var(--red);padding-bottom:8px}
   .hdr-left{display:flex;align-items:center;gap:12px}
@@ -29,8 +27,6 @@
   .ttl .rad{color:var(--white)}
   .clock{font-size:14px;color:var(--blue);font-weight:700;letter-spacing:1px;text-align:right;line-height:1.2}
   .clock .t{color:var(--white);font-size:20px}
-
-  /* Legend */
   .legend{display:flex;gap:14px;align-items:center;font-size:11px;color:#bbb;
     margin-top:8px;letter-spacing:1px}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;
@@ -39,8 +35,6 @@
   .dot.yellow{background:var(--yellow)}
   .dot.red{background:var(--red)}
   .legend .src{margin-left:auto;color:var(--blue);font-weight:700}
-
-  /* Grid 3x2 */
   .grid{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);
     grid-template-rows:repeat(2,1fr);gap:10px;height:336px}
   .card{position:relative;border:2px solid var(--blue);background:#000;
@@ -48,11 +42,9 @@
   .card.ok{border-color:var(--green)}
   .card.warn{border-color:var(--yellow)}
   .card.danger{border-color:var(--red)}
-
   .city{font-size:18px;font-weight:900;letter-spacing:1px}
   .city .pin{color:var(--yellow);margin-right:6px}
   .reg{font-size:10px;color:#888;letter-spacing:1px;margin-top:2px}
-
   .val-row{display:flex;align-items:baseline;gap:6px}
   .val{font-size:46px;font-weight:900;line-height:1;letter-spacing:-1px}
   .unit{font-size:13px;color:#aaa;font-weight:700;letter-spacing:1px}
@@ -60,15 +52,12 @@
   .card.warn .val{color:var(--yellow)}
   .card.danger .val{color:var(--red)}
   .card.err .val{color:#666;font-size:30px}
-
   .meta{display:flex;align-items:center;justify-content:space-between;
     font-size:10px;color:#888;letter-spacing:1px}
   .pill{font-size:10px;font-weight:900;padding:2px 8px;letter-spacing:1px;color:#000}
   .pill.ok{background:var(--green)}
   .pill.warn{background:var(--yellow)}
   .pill.danger{background:var(--red);color:var(--white)}
-
-  /* Footer */
   .ftr{position:absolute;left:0;right:0;bottom:0;height:32px;
     background:var(--yellow);color:#000;display:flex;align-items:center;
     justify-content:space-between;padding:0 18px;font-size:11px;font-weight:900;
@@ -111,25 +100,22 @@
 
 <script>
 (function(){
-  // 6 stations - SaveEcoBot slug under /en/radiation/
   var STATIONS = [
-    { name:"KYIV",      region:"CAPITAL",          slug:"misto-kyiv" },
-    { name:"LVIV",      region:"LVIVSKA OBL.",     slug:"lvivska-oblast/lviv" },
-    { name:"KHARKIV",   region:"KHARKIVSKA OBL.",  slug:"kharkivska-oblast/kharkiv" },
-    { name:"ODESA",     region:"ODESKA OBL.",      slug:"odeska-oblast/odesa" },
-    { name:"DNIPRO",    region:"DNIPROPETROVSK",   slug:"dnipropetrovska-oblast/dnipro" },
-    { name:"CHORNOBYL", region:"EXCLUSION ZONE",   slug:"kyivska-oblast/chornobyl" }
+    { name:"KYIV",      region:"CAPITAL",          id:"misto-kyiv" },
+    { name:"LVIV",      region:"LVIVSKA OBL.",     id:"lviv" },
+    { name:"KHARKIV",   region:"KHARKIVSKA OBL.",  id:"kharkiv" },
+    { name:"ODESA",     region:"ODESKA OBL.",      id:"odesa" },
+    { name:"DNIPRO",    region:"DNIPROPETROVSK",   id:"dnipro" },
+    { name:"CHORNOBYL", region:"EXCLUSION ZONE",   id:"chornobyl" }
   ];
 
-  // CORS-friendly read-only proxy
   var PROXY = "https://api.codetabs.com/v1/proxy?quest=";
-  var BASE  = "https://www.saveecobot.com/en/radiation/";
-  var REFRESH_MS = 1 * 60 * 1000; // 1 min
+  var API   = "https://api.saveecobot.com/radiation?city=";
+  var REFRESH_MS = 60 * 1000;
   var DISPLAY_TIMEZONE = "Australia/Sydney";
 
   var grid = document.getElementById("grid");
 
-  // Build skeleton cards
   STATIONS.forEach(function(s, i){
     var card = document.createElement("div");
     card.className = "card";
@@ -157,114 +143,16 @@
     return                { cls:"danger",pill:"danger", label:"HIGH" };
   }
 
-  function parseHtml(html){
-    // value
-    var m = html.match(/<div class="text-2xl md:text-4xl font-medium">\s*([0-9.]+)\s*<\/div>/);
-    var v = m ? parseFloat(m[1]) : null;
-    // timestamp
-    var t = null;
-    var m2 = html.match(/<div class="text-sm">\s*([^<]+?)\s*<\/div>/);
-    if (m2) t = m2[1].trim();
-    return { value:v, time:t };
-  }
-
   function fetchOne(idx){
     var s = STATIONS[idx];
-    var url = PROXY + encodeURIComponent(BASE + s.slug);
+    var url = PROXY + encodeURIComponent(API + s.id);
     return fetch(url, { cache:"no-store" })
-      .then(function(r){ return r.text(); })
-      .then(function(txt){
-        if (txt.indexOf("404 Page Not Found") > -1) throw new Error("404");
-        return parseHtml(txt);
+      .then(r => r.json())
+      .then(json => {
+        if (!json || !json[0]) throw new Error("No data");
+        return { value: json[0].value, time: json[0].datetime };
       });
   }
 
   function render(idx, data, err){
-    var card = document.getElementById("c" + idx);
-    var v   = card.querySelector("[data-v]");
-    var t   = card.querySelector("[data-t]");
-    var p   = card.querySelector("[data-p]");
-    if (err || !data || data.value == null) {
-      card.className = "card err";
-      v.textContent = "ERR";
-      t.textContent = "NO DATA";
-      p.className = "pill warn";
-      p.textContent = "OFFLINE";
-      return;
-    }
-    var c = classify(data.value);
-    card.className = "card " + c.cls;
-    v.textContent = data.value.toFixed(3);
-    t.textContent = (data.time || "").toUpperCase();
-    p.className = "pill " + c.pill;
-    p.textContent = c.label;
-  }
-
-  function getSydneyDateParts(){
-    var parts = new Intl.DateTimeFormat("en-AU", {
-      timeZone: DISPLAY_TIMEZONE,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }).formatToParts(new Date());
-
-    function get(type){
-      var part = parts.find(function(p){ return p.type === type; });
-      return part ? part.value : "";
-    }
-
-    return {
-      hour: get("hour"),
-      minute: get("minute"),
-      day: get("day"),
-      month: get("month"),
-      year: get("year")
-    };
-  }
-
-  function tickClock(){
-    var parts = getSydneyDateParts();
-    document.getElementById("clock").textContent =
-      parts.hour + ":" + parts.minute;
-    document.getElementById("date").textContent =
-      parts.day + " " + parts.month.toUpperCase() + " " + parts.year;
-  }
-
-  function setStatus(txt, kind){
-    var s = document.getElementById("status");
-    s.innerHTML = txt + '<span class="' + (kind || "ok") + '">.</span>';
-  }
-
-  function refreshAll(){
-    setStatus("FETCHING", "ok");
-    var done = 0, ok = 0;
-    STATIONS.forEach(function(_, i){
-      fetchOne(i)
-        .then(function(d){ render(i, d, null); ok++; })
-        .catch(function(e){ render(i, null, e); })
-        .then(function(){
-          done++;
-          if (done === STATIONS.length){
-            var parts = getSydneyDateParts();
-            document.getElementById("updated").textContent =
-              "UPDATED: " + parts.hour + ":" + parts.minute;
-            setStatus(ok === STATIONS.length ? "LIVE" :
-                      (ok === 0 ? "OFFLINE" : "PARTIAL"),
-                      ok === STATIONS.length ? "ok" :
-                      (ok === 0 ? "danger" : "warn"));
-          }
-        });
-    });
-  }
-
-  tickClock();
-  setInterval(tickClock, 30 * 1000);
-  refreshAll();
-  setInterval(refreshAll, REFRESH_MS);
-})();
-</script>
-</body>
-</html>
+    var card = document.getElementById("
